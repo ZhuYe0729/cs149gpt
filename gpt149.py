@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.utils.cpp_extension import load
 from torch.profiler import profile, record_function, ProfilerActivity
-import module_ref as ms
+# import module_ref as ms
 
 NUM_THREADS=8
 torch.set_num_threads(NUM_THREADS)
@@ -39,39 +39,39 @@ class CustomAttention(nn.Module):
 
     #part 1
     def myUnfusedAttention(self):
-        if self.isRef:
+        # if self.isRef:
             with record_function("STUDENT - NAIVE ATTENTION"):
                 temp = torch.zeros((self.N, self.N))
                 out = mr.myNaiveAttention(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
             return out
-        with record_function("REFERENCE - NAIVE ATTENTION"):
+        # with record_function("REFERENCE - NAIVE ATTENTION"):
             temp = torch.zeros((self.N, self.N))
-            out = ms.myNaiveAttention(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
-        return out
+            # out = ms.myNaiveAttention(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
+        # return out
 
     #part 2
     def myUnfusedAttentionBlocked(self):
-        if self.isRef:
+        # if self.isRef:
             with record_function("STUDENT - BLOCKED MATMUL + UNFUSED SOFTMAX"):
                 temp = torch.zeros((self.N, self.N))
                 out = mr.myUnfusedAttentionBlocked(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
             return out 
-        with record_function("REFERENCE - BLOCKED MATMUL + UNFUSED SOFTMAX"):
-            temp = torch.zeros((self.N, self.N))
-            out = ms.myUnfusedAttentionBlocked(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
-        return out
+        # with record_function("REFERENCE - BLOCKED MATMUL + UNFUSED SOFTMAX"):
+        #     temp = torch.zeros((self.N, self.N))
+        #     # out = ms.myUnfusedAttentionBlocked(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
+        # return out
 
     #part 3
     def myFusedAttention(self):
-        if self.isRef:
+        # if self.isRef:
             with record_function("STUDENT - FUSED ATTENTION"):
                 temp = torch.zeros((NUM_THREADS, self.N))
                 out = mr.myFusedAttention(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
             return out
-        with record_function("REFERENCE - FUSED ATTENTION"):
-            temp = torch.zeros((NUM_THREADS, self.N))
-            out = ms.myFusedAttention(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
-        return out
+        # with record_function("REFERENCE - FUSED ATTENTION"):
+        #     temp = torch.zeros((NUM_THREADS, self.N))
+        #     # out = ms.myFusedAttention(self.Q, self.K, self.V, temp, self.B, self.H, self.N, self.d)
+        # return out
 
     #part 4
     def myFlashAttention(self):
@@ -88,14 +88,14 @@ class CustomAttention(nn.Module):
         Lij = torch.zeros((self.br))
         Li = torch.zeros((self.br))
 
-        if self.isRef:
-            with record_function("STUDENT - FLASH ATTENTION"):
-                out = mr.myFlashAttention(self.Q, self.K, self.V, Qi, Kj, Vj, Sij, Pij, PV, Oi, L, Li, Lij, Lnew, self.bc, self.br, self.B, self.H, self.N, self.d)
-            return out
-        with record_function("REFERENCE - FLASH ATTENTION"):
-            #out = ms.myFlashAttention(self.Q, self.K, self.V, self.B, self.H, self.N, self.d, self.blockSize)
-            out = ms.myFlashAttention(self.Q, self.K, self.V, Qi, Kj, Vj, Sij, Pij, PV, Oi, L, Li, Lij, Lnew, self.bc, self.br, self.B, self.H, self.N, self.d)
+        # if self.isRef:
+        with record_function("STUDENT - FLASH ATTENTION"):
+            out = mr.myFlashAttention(self.Q, self.K, self.V, Qi, Kj, Vj, Sij, Pij, PV, Oi, L, Li, Lij, Lnew, self.bc, self.br, self.B, self.H, self.N, self.d)
         return out
+        # with record_function("REFERENCE - FLASH ATTENTION"):
+            #out = ms.myFlashAttention(self.Q, self.K, self.V, self.B, self.H, self.N, self.d, self.blockSize)
+            # out = ms.myFlashAttention(self.Q, self.K, self.V, Qi, Kj, Vj, Sij, Pij, PV, Oi, L, Li, Lij, Lnew, self.bc, self.br, self.B, self.H, self.N, self.d)
+        # return out
 
 # generates dummy matrices for use in part0 
 def createQKVSimple(N,d,B,H):
@@ -157,7 +157,8 @@ def testTemplate(customFunc, params, test_key):
     QKV = badSoftmax(Q,K,V)
     end = time.time()
     pytorch_time = end - start
-
+    # print(QKV)
+    # exit(0)
     with profile(activities=[ProfilerActivity.CPU],
             profile_memory=True, record_shapes=True) as prof:
         with record_function("model_inference"):
@@ -199,7 +200,8 @@ def part0Test(N, d, B, H):
 def part1Test(N, d, B, H):
     print("Running Part 1 Test: Naive Unfused Attention\n")
     Q,K,V = createQKVSimple(N,d,B,H)
-    attentionModuleStudent = CustomAttention(Q,K,V, B, H, N, d)
+    attentionModuleStudent = CustomAttention(Q,K,V, B, H, N, d, True)
+    # attentionModuleReference = CustomAttention(Q,K,V, B, H, N, d)
     attentionModuleReference = CustomAttention(Q,K,V, B, H, N, d, True)
     params = (N, d, B, H)
     print("-----RUNNING REFERENCE IMPLEMENTATION-----\n")
@@ -262,6 +264,7 @@ def accessTest(B, H, N, d):
 def main():
 
     d=32
+    # d=4
     B=1
     H=4
     

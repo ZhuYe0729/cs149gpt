@@ -66,8 +66,10 @@ def run_sample(N, out_dir, testname):
         load_meta = os.path.exists(meta_path)
     if load_meta:
         print(f"Loading meta from {meta_path}...")
+        print("start load")
         with open(meta_path, 'rb') as f:
             meta = pickle.load(f)
+        print("success load")
         # TODO want to make this more general to arbitrary encoder/decoder schemes
         stoi, itos = meta['stoi'], meta['itos']
         encode = lambda s: [stoi[c] for c in s]
@@ -80,6 +82,7 @@ def run_sample(N, out_dir, testname):
         decode = lambda l: enc.decode(l)
 
     # encode the beginning of the prompt
+    print("start encode")
     if start.startswith('FILE:'):
         with open(start[5:], 'r', encoding='utf-8') as f:
             start = f.read()
@@ -87,6 +90,7 @@ def run_sample(N, out_dir, testname):
     x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
 
     # run generation
+    print("start run generation")
     with torch.no_grad():
         with ctx:
             for k in range(num_samples):
